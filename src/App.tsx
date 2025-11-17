@@ -12,14 +12,16 @@ import {
   useEditor,
 } from "tldraw";
 import { AIWorkflowNodes, AIWorkflowShapes } from "./shapes";
-import { AIWorkflowTools } from "./tools";
+import { AIWorkflowBindings } from "./bindins";
+import { BaseConnectionTool } from "./tools/connection.tool";
 
 function App() {
   return (
     <div style={{ position: "fixed", inset: 0 }}>
       <Tldraw
-        tools={AIWorkflowTools}
+        // tools={AIWorkflowTools}
         shapeUtils={AIWorkflowShapes}
+        bindingUtils={AIWorkflowBindings}
         persistenceKey="main"
         overrides={{
           tools: (editor, tools) => {
@@ -74,11 +76,13 @@ function App() {
         onMount={(editor) => {
           editor.user.updateUserPreferences({
             locale: "en",
+            colorScheme: "dark",
+            isSnapMode: true,
           });
 
-          editor.createShape({
-            type: "connection",
-          });
+          try {
+            editor.getStateDescendant("select")!.addChild(BaseConnectionTool);
+          } catch {}
         }}
       >
         <Watcher />
