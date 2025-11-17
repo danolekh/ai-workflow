@@ -1,0 +1,3 @@
+[submodule "tldraw"]
+	path = tldraw
+	url = git@github.com:tldraw/tldraw.git
