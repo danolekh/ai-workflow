@@ -5,7 +5,11 @@ import {
   TLBaseBinding,
 } from "tldraw";
 
-export type ConnectionBinding = TLBaseBinding<"connection", {}>;
+export type ConnectionBinding = TLBaseBinding<"connection", {}> & {
+  meta: {
+    type: "start" | "end";
+  };
+};
 
 export class ConnectionBindingUtil extends BindingUtil<ConnectionBinding> {
   static override type = "connection";

@@ -12,7 +12,7 @@ import {
   useEditor,
 } from "tldraw";
 import { AIWorkflowNodes, AIWorkflowShapes } from "./shapes";
-import { AIWorkflowBindings } from "./bindins";
+import { AIWorkflowBindings } from "./bindings";
 import { BaseConnectionTool } from "./tools/connection.tool";
 
 function App() {
@@ -67,7 +67,7 @@ function App() {
               </TldrawUiMenuGroup>
               <TldrawUiMenuGroup id="ai-nodes">
                 {AIWorkflowShapes.map((shape) => (
-                  <ToolbarItem tool={`node-${shape.type}`} />
+                  <ToolbarItem tool={`node-${shape.type}`} key={shape.type} />
                 ))}
               </TldrawUiMenuGroup>
             </DefaultToolbar>

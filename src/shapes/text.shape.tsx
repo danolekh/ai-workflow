@@ -1,6 +1,7 @@
 import { Textarea } from "@/components/ui/textarea";
 import { HTMLContainer, TLBaseShape, BaseBoxShapeUtil } from "tldraw";
 import { TextIcon } from "lucide-react";
+import { ConnectionPool, ConnectionTargetIndicator } from "./connection.shape";
 
 type TextShape = TLBaseShape<
   "text",
@@ -26,24 +27,30 @@ export class TextShapeUtil extends BaseBoxShapeUtil<TextShape> {
 
   component(shape: TextShape) {
     return (
-      <HTMLContainer className="flex flex-col gap-2 bg-card p-4 border rounded-md">
-        <span className="text-lg">Text</span>
-        <Textarea
-          className="w-full flex-1 pointer-events-auto min-h-0"
-          value={shape.props.text}
-          onChange={(e) => {
-            const t = e.target.value;
+      <ConnectionTargetIndicator shape={shape}>
+        <HTMLContainer className="flex flex-col gap-2 bg-card p-4 border rounded-md">
+          <span className="text-lg">Text</span>
+          <Textarea
+            className="w-full flex-1 pointer-events-auto min-h-0"
+            value={shape.props.text}
+            onChange={(e) => {
+              const t = e.target.value;
 
-            this.editor.updateShape<TextShape>({
-              id: shape.id,
-              type: "text",
-              props: {
-                text: t,
-              },
-            });
-          }}
-        ></Textarea>
-      </HTMLContainer>
+              this.editor.updateShape<TextShape>({
+                id: shape.id,
+                type: "text",
+                props: {
+                  text: t,
+                },
+              });
+            }}
+          ></Textarea>
+          <ConnectionPool
+            className="absolute right-0 translate-x-[50%] top-[50%] -translate-y-[50%] z-[-1]"
+            sourceShapeId={shape.id}
+          />
+        </HTMLContainer>
+      </ConnectionTargetIndicator>
     );
   }
 

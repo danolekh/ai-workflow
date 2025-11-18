@@ -1,8 +1,5 @@
-import { ConnectionBinding } from "@/bindins/connection.binding";
-import {
-  ConnectionShape,
-  ConnectionShapeUtil,
-} from "@/shapes/connection.shape";
+import { ConnectionBinding } from "@/bindings/connection.binding";
+import { ConnectionShape } from "@/shapes/connection.shape";
 import {
   TLShapeId,
   createShapeId,
@@ -32,9 +29,6 @@ export class BaseConnectionTool extends StateNode {
   override onPointerMove(info: TLPointerEventInfo): void {
     if (!this.editor.inputs.isDragging) return;
     if (!this.info) return;
-
-    console.log({ info: this.info, isDragging: this.editor.inputs.isDragging });
-    console.log(" in pointer move ", { info });
 
     const creatingMarkId = this.editor.markHistoryStoppingPoint();
     const connectionShapeId = createShapeId();
@@ -67,13 +61,14 @@ export class BaseConnectionTool extends StateNode {
       type: "connection",
       fromId: connectionShapeId,
       toId: this.info.sourceShapeId,
+      meta: {
+        type: "start",
+      },
     });
 
     const handle = this.editor
       .getShapeHandles(connectionShapeId)
       ?.find((h) => h.id === "end");
-
-    console.log({ handle });
 
     this.parent.transition("dragging_handle", {
       target: "handle",
@@ -82,8 +77,6 @@ export class BaseConnectionTool extends StateNode {
       creatingMarkId,
       isCreating: true,
     });
-
-    console.log({ info });
   }
 
   static override children() {
