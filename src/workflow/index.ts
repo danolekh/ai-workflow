@@ -1,5 +1,6 @@
 import { ConnectionBinding } from "@/bindings/connection.binding";
 import { Editor, TLShapeId } from "tldraw";
+import { nodesMap } from "@/shapes/node";
 
 type WorkflowSnapshot = {
   startingNode: TLShapeId;
@@ -56,7 +57,24 @@ export const getWorkflowShapshot = (
   };
 };
 
-export const executeWorkflow = (
+export const executeWorkflow = async (
   editor: Editor,
   snapshot: WorkflowSnapshot,
-) => {};
+) => {
+  const node = editor.getShape(snapshot.startingNode);
+
+  console.log({ node });
+
+  if (!node) return;
+
+  const res = await nodesMap[node.type as keyof typeof nodesMap].execute(
+    editor,
+    node as any,
+    {},
+  );
+
+  console.log({ res });
+
+  // node.
+  // snapshot.startingNode;
+};

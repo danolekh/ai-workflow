@@ -1,10 +1,16 @@
 import { Textarea } from "@/components/ui/textarea";
-import { HTMLContainer, TLBaseShape, BaseBoxShapeUtil } from "tldraw";
+import {
+  HTMLContainer,
+  TLBaseShape,
+  BaseBoxShapeUtil,
+  ShapeUtil,
+  Editor,
+} from "tldraw";
 import { FileInputIcon, PlayIcon } from "lucide-react";
 import { ConnectionPool, ConnectionTargetIndicator } from "./connection.shape";
 import { Button } from "@/components/ui/button";
+import { executeWorkflow, getWorkflowShapshot } from "@/workflow";
 import { sleep } from "@/lib/utils";
-import { getWorkflowShapshot } from "@/workflow";
 
 type PromptShape = TLBaseShape<
   "prompt",
@@ -17,6 +23,14 @@ type PromptShape = TLBaseShape<
 
 export class PromptShapeUtil extends BaseBoxShapeUtil<PromptShape> {
   static override type = "prompt" as const;
+
+  static async execute(editor: Editor, shape: PromptShape, inputs: any) {
+    await sleep(400);
+
+    return {
+      text: `Hello from ${shape.id}`,
+    };
+  }
 
   canEdit(_shape: PromptShape): boolean {
     return false;
@@ -36,12 +50,6 @@ export class PromptShapeUtil extends BaseBoxShapeUtil<PromptShape> {
     };
   }
 
-  async execute(shape: PromptShape) {
-    await sleep(400);
-
-    return `Output from ${shape.id}`;
-  }
-
   component(shape: PromptShape) {
     return (
       <HTMLContainer className="flex flex-col gap-2 bg-card p-4 border rounded-md cursor-grab">
@@ -56,6 +64,8 @@ export class PromptShapeUtil extends BaseBoxShapeUtil<PromptShape> {
               onPointerDown={() => {
                 console.log("here");
                 const snapshot = getWorkflowShapshot(this.editor, shape.id);
+
+                executeWorkflow(this.editor, snapshot);
 
                 console.log({
                   snapshot,

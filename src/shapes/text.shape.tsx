@@ -1,7 +1,8 @@
 import { Textarea } from "@/components/ui/textarea";
-import { HTMLContainer, TLBaseShape, BaseBoxShapeUtil } from "tldraw";
+import { HTMLContainer, TLBaseShape, BaseBoxShapeUtil, Editor } from "tldraw";
 import { TextIcon } from "lucide-react";
 import { ConnectionPool, ConnectionTargetIndicator } from "./connection.shape";
+import { sleep } from "@/lib/utils";
 
 type TextShape = TLBaseShape<
   "text",
@@ -16,6 +17,14 @@ export class TextShapeUtil extends BaseBoxShapeUtil<TextShape> {
   static override type = "text" as const;
 
   static icon = (<TextIcon strokeWidth={1.8} className="size-5" />);
+
+  static async execute(editor: Editor, shape: TextShape, inputs: any) {
+    await sleep(400);
+
+    return {
+      text: shape.props.text,
+    };
+  }
 
   getDefaultProps() {
     return {
