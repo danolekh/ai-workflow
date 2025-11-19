@@ -1,6 +1,8 @@
 import { ConnectionBinding } from "@/bindings/connection.binding";
-import { Editor, TLShapeId } from "tldraw";
-import { nodesMap } from "@/shapes/node";
+import { Editor, TLShapeId, useValue } from "tldraw";
+import { registry } from "@/shapes/registry";
+import { atom } from "@tldraw/state";
+import { toast } from "sonner";
 
 type WorkflowSnapshot = {
   startingNode: TLShapeId;
@@ -61,20 +63,83 @@ export const executeWorkflow = async (
   editor: Editor,
   snapshot: WorkflowSnapshot,
 ) => {
-  const node = editor.getShape(snapshot.startingNode);
+  const runNode = async (shapeId: TLShapeId) => {
+    console.log("running", { shapeId });
+    const node = editor.getShape(shapeId);
 
-  console.log({ node });
+    if (!node) {
+      toast.error(`Node with id ${shapeId} not found.`);
 
-  if (!node) return;
+      currentWorkflow.update((workflow) => {
+        if (!workflow)
+          return {
+            snapshot,
+            error: `Node with id ${shapeId} not found.`,
+            nodeOutputs: {},
+          };
 
-  const res = await nodesMap[node.type as keyof typeof nodesMap].execute(
-    editor,
-    node as any,
-    {},
+        return {
+          ...workflow,
+          error: `Node with id ${shapeId} not found.`,
+        };
+      });
+
+      return;
+    }
+
+    runningNodes.update((value) => new Set([...value, node.id]));
+
+    const output = await registry[node.type].execute(editor, node, {});
+
+    currentWorkflow.update((workflow) => {
+      if (!workflow)
+        return {
+          error: null,
+          nodeOutputs: {
+            [node.id]: output,
+          },
+          snapshot,
+        };
+
+      return {
+        ...workflow,
+        nodeOutputs: {
+          ...workflow.nodeOutputs,
+          [node.id]: output,
+        },
+      };
+    });
+
+    runningNodes.update(
+      (value) =>
+        new Set(Array.from(value.values()).filter((v) => v !== node.id)),
+    );
+
+    const childrenJobs =
+      snapshot.nodeToChildren[node.id]?.map((childId) => runNode(childId)) ??
+      [];
+
+    if (childrenJobs.length > 0) await Promise.all(childrenJobs);
+  };
+
+  runNode(snapshot.startingNode);
+};
+
+export const runningNodes = atom<Set<TLShapeId>>("runningNodes", new Set());
+
+export const useIsRunning = (shapeId: TLShapeId) =>
+  useValue(
+    "isRunning",
+    () => {
+      return runningNodes.get().has(shapeId);
+    },
+    [],
   );
 
-  console.log({ res });
+type WorkflowState = {
+  error: string | null;
+  snapshot: WorkflowSnapshot;
+  nodeOutputs: Record<TLShapeId, any>;
+} | null;
 
-  // node.
-  // snapshot.startingNode;
-};
+export const currentWorkflow = atom<WorkflowState>("currentWorkflow", null);

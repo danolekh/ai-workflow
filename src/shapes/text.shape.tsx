@@ -1,10 +1,12 @@
 import { Textarea } from "@/components/ui/textarea";
 import { HTMLContainer, TLBaseShape, BaseBoxShapeUtil, Editor } from "tldraw";
-import { TextIcon } from "lucide-react";
+import { Loader2Icon, PlayIcon, TextIcon } from "lucide-react";
 import { ConnectionPool, ConnectionTargetIndicator } from "./connection.shape";
 import { sleep } from "@/lib/utils";
+import { executeWorkflow, getWorkflowShapshot, useIsRunning } from "@/workflow";
+import { Button } from "@/components/ui/button";
 
-type TextShape = TLBaseShape<
+export type TextShape = TLBaseShape<
   "text",
   {
     h: number;
@@ -35,10 +37,36 @@ export class TextShapeUtil extends BaseBoxShapeUtil<TextShape> {
   }
 
   component(shape: TextShape) {
+    const isRunning = useIsRunning(shape.id);
+
     return (
       <ConnectionTargetIndicator shape={shape}>
         <HTMLContainer className="flex flex-col gap-2 bg-card p-4 border rounded-md">
-          <span className="text-lg">Text</span>
+          <div className="flex justify-between">
+            <span className="text-lg">Text</span>
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              className="pointer-events-auto"
+              disabled={isRunning}
+              onPointerDown={() => {
+                const snapshot = getWorkflowShapshot(this.editor, shape.id);
+
+                executeWorkflow(this.editor, snapshot);
+
+                console.log({
+                  snapshot,
+                });
+              }}
+            >
+              {isRunning ? (
+                <Loader2Icon className="size-4 animate-spin" />
+              ) : (
+                <PlayIcon />
+              )}
+            </Button>
+          </div>
           <Textarea
             className="w-full flex-1 pointer-events-auto min-h-0"
             value={shape.props.text}

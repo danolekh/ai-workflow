@@ -14,6 +14,7 @@ import {
 import { AIWorkflowNodes, AIWorkflowShapes } from "./shapes";
 import { AIWorkflowBindings } from "./bindings";
 import { BaseConnectionTool } from "./tools/connection.tool";
+import { Toaster } from "sonner";
 
 function App() {
   return (
@@ -87,6 +88,7 @@ function App() {
       >
         <Watcher />
       </Tldraw>
+      <Toaster />
     </div>
   );
 }

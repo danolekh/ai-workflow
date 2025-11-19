@@ -5,14 +5,20 @@ import {
   BaseBoxShapeUtil,
   ShapeUtil,
   Editor,
+  useValue,
 } from "tldraw";
-import { FileInputIcon, PlayIcon } from "lucide-react";
+import { FileInputIcon, Loader2Icon, PlayIcon } from "lucide-react";
 import { ConnectionPool, ConnectionTargetIndicator } from "./connection.shape";
 import { Button } from "@/components/ui/button";
-import { executeWorkflow, getWorkflowShapshot } from "@/workflow";
+import {
+  executeWorkflow,
+  getWorkflowShapshot,
+  runningNodes,
+  useIsRunning,
+} from "@/workflow";
 import { sleep } from "@/lib/utils";
 
-type PromptShape = TLBaseShape<
+export type PromptShape = TLBaseShape<
   "prompt",
   {
     h: number;
@@ -51,6 +57,8 @@ export class PromptShapeUtil extends BaseBoxShapeUtil<PromptShape> {
   }
 
   component(shape: PromptShape) {
+    const isRunning = useIsRunning(shape.id);
+
     return (
       <HTMLContainer className="flex flex-col gap-2 bg-card p-4 border rounded-md cursor-grab">
         <ConnectionTargetIndicator shape={shape}>
@@ -61,6 +69,7 @@ export class PromptShapeUtil extends BaseBoxShapeUtil<PromptShape> {
               size="icon"
               variant="outline"
               className="pointer-events-auto"
+              disabled={isRunning}
               onPointerDown={() => {
                 console.log("here");
                 const snapshot = getWorkflowShapshot(this.editor, shape.id);
@@ -72,7 +81,11 @@ export class PromptShapeUtil extends BaseBoxShapeUtil<PromptShape> {
                 });
               }}
             >
-              <PlayIcon />
+              {isRunning ? (
+                <Loader2Icon className="size-4 animate-spin" />
+              ) : (
+                <PlayIcon />
+              )}
             </Button>
           </div>
           <Textarea
