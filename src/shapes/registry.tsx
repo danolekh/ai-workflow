@@ -1,45 +1,69 @@
-import { Editor, TLBaseShape, TLShape } from "tldraw";
+import { Editor, TLBaseShape, T } from "tldraw";
 import type { PromptShape } from "./prompt.shape";
 import type { TextShape } from "./text.shape";
 import { sleep } from "@/lib/utils";
 
-type NodeRegistration<Shape extends TLBaseShape<any, any>> = {
-  execute: (editor: Editor, shape: Shape, inputs: any) => Promise<any> | any;
+type NodeRegistration<
+  Shape extends TLBaseShape<any, any>,
+  Inputs extends {} | undefined,
+  Outputs extends {} | undefined,
+> = {
+  inputsValidator: T.Validator<Inputs>;
+  outputsValidator: T.Validator<Outputs>;
+  execute: (
+    editor: Editor,
+    shape: Shape,
+    inputs: Inputs,
+  ) => Promise<Outputs> | Outputs;
+};
+
+export const register = <Shape extends TLBaseShape<any, any>>(
+  type: Shape["type"],
+) => {
+  return <Inputs extends {} | undefined, Outputs extends {} | undefined>(
+    data: NodeRegistration<Shape, Inputs, Outputs>,
+  ) => ({ [type]: data });
 };
 
 export const registry = {
-  ...registerNode<PromptShape>({
-    type: "prompt",
+  ...register<PromptShape>("prompt")({
+    inputsValidator: T.object({
+      text: T.string,
+    }).optional(),
+    outputsValidator: T.object({
+      text: T.string,
+    }),
     execute: async (editor, shape, inputs) => {
       await sleep(400);
 
-      return {
-        text: `hello from ${shape.id}`,
-      };
+      return { text: `hello from ${shape.id}` };
     },
   }),
-  ...registerNode<TextShape>({
-    type: "text",
-    execute: async (editor, shape, inputs) => {
-      await sleep(400);
 
-      return {
-        text: shape.props.text,
-      };
+  ...register<TextShape>("text")({
+    inputsValidator: T.object({
+      text: T.string,
+    }),
+    outputsValidator: T.object({
+      text: T.string,
+    }),
+    execute: (editor, shape, inputs) => {
+      editor.updateShape<TextShape>({
+        id: shape.id,
+        type: "text",
+        props: {
+          ...shape.props,
+          text: inputs.text,
+        },
+      });
+
+      return { text: shape.props.text };
     },
   }),
 };
 
-export function registerNode<Shape extends TLShape>({
-  type,
-  execute,
-}: {
-  type: Shape["type"];
-  execute: NodeRegistration<Shape>["execute"];
-}) {
-  return {
-    [type]: {
-      execute,
-    },
-  };
-}
+const a = T.object({
+  text: T.string,
+}).optional();
+
+type A = typeof a;

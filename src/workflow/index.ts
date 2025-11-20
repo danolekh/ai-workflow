@@ -45,7 +45,9 @@ export const getWorkflowShapshot = (
       const children = getChildren(nodeId);
       result[nodeId] = children;
 
-      children.forEach((childId) => traverse(childId));
+      children.forEach((childId) => {
+        traverse(childId);
+      });
     };
 
     traverse(nodeId);
@@ -63,7 +65,7 @@ export const executeWorkflow = async (
   editor: Editor,
   snapshot: WorkflowSnapshot,
 ) => {
-  const runNode = async (shapeId: TLShapeId) => {
+  const runNode = async (shapeId: TLShapeId, inputs: any = undefined) => {
     console.log("running", { shapeId });
     const node = editor.getShape(shapeId);
 
@@ -89,7 +91,7 @@ export const executeWorkflow = async (
 
     runningNodes.update((value) => new Set([...value, node.id]));
 
-    const output = await registry[node.type].execute(editor, node, {});
+    const output = await registry[node.type].execute(editor, node, inputs);
 
     currentWorkflow.update((workflow) => {
       if (!workflow)
@@ -116,8 +118,9 @@ export const executeWorkflow = async (
     );
 
     const childrenJobs =
-      snapshot.nodeToChildren[node.id]?.map((childId) => runNode(childId)) ??
-      [];
+      snapshot.nodeToChildren[node.id]?.map((childId) =>
+        runNode(childId, output),
+      ) ?? [];
 
     if (childrenJobs.length > 0) await Promise.all(childrenJobs);
   };
