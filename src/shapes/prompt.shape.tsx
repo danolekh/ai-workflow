@@ -16,6 +16,7 @@ import {
 import { ConnectionPool, ConnectionTargetIndicator } from "./connection.shape";
 import { Button } from "@/components/ui/button";
 import { WorkflowRunner, getWorkflowShapshot, useIsRunning } from "@/workflow";
+import { RunWorkflowButton } from "@/components/run-workflow-button";
 
 export type PromptShape = TLBaseShape<
   "prompt",
@@ -48,32 +49,12 @@ export class PromptShapeUtil extends BaseBoxShapeUtil<PromptShape> {
   }
 
   component(shape: PromptShape) {
-    const isRunning = useIsRunning(shape.id);
-
     return (
       <HTMLContainer className="flex flex-col gap-2 bg-card p-4 border rounded-md cursor-grab">
         <ConnectionTargetIndicator shape={shape}>
           <div className="flex justify-between">
             <span className="text-lg">Prompt</span>
-            <Button
-              type="button"
-              size="icon"
-              variant="outline"
-              className="pointer-events-auto"
-              disabled={isRunning}
-              onPointerDown={() => {
-                const snapshot = getWorkflowShapshot(this.editor, shape.id);
-                const runner = new WorkflowRunner(this.editor, snapshot);
-
-                runner.run();
-              }}
-            >
-              {isRunning ? (
-                <Loader2Icon className="size-4 animate-spin" />
-              ) : (
-                <PlayIcon />
-              )}
-            </Button>
+            <RunWorkflowButton shapeId={shape.id} />
           </div>
           <Textarea
             className="w-full flex-1 pointer-events-auto min-h-0"

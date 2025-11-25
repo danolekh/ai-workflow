@@ -4,6 +4,7 @@ import { Loader2Icon, PlayIcon, TextIcon } from "lucide-react";
 import { ConnectionPool, ConnectionTargetIndicator } from "./connection.shape";
 import { WorkflowRunner, getWorkflowShapshot, useIsRunning } from "@/workflow";
 import { Button } from "@/components/ui/button";
+import { RunWorkflowButton } from "@/components/run-workflow-button";
 
 export type TextShape = TLBaseShape<
   "text",
@@ -28,32 +29,12 @@ export class TextShapeUtil extends BaseBoxShapeUtil<TextShape> {
   }
 
   component(shape: TextShape) {
-    const isRunning = useIsRunning(shape.id);
-
     return (
       <ConnectionTargetIndicator shape={shape}>
         <HTMLContainer className="flex flex-col gap-2 bg-card p-4 border rounded-md">
           <div className="flex justify-between">
             <span className="text-lg">Text</span>
-            <Button
-              type="button"
-              size="icon"
-              variant="outline"
-              className="pointer-events-auto"
-              disabled={isRunning}
-              onPointerDown={() => {
-                const snapshot = getWorkflowShapshot(this.editor, shape.id);
-                const runner = new WorkflowRunner(this.editor, snapshot);
-
-                runner.run();
-              }}
-            >
-              {isRunning ? (
-                <Loader2Icon className="size-4 animate-spin" />
-              ) : (
-                <PlayIcon />
-              )}
-            </Button>
+            <RunWorkflowButton shapeId={shape.id} />
           </div>
           <Textarea
             className="w-full flex-1 pointer-events-auto min-h-0"

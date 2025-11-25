@@ -131,9 +131,19 @@ export class WorkflowRunner {
   editor: Editor;
   snapshot: WorkflowSnapshot;
 
+  // when connection fires a target, it's written here
+  fires: Record<
+    TLShapeId,
+    {
+      inputPropertyName: string;
+      value: RegistryOutputsVariations;
+    }
+  >;
+
   constructor(editor: Editor, snapshot: WorkflowSnapshot) {
     this.editor = editor;
     this.snapshot = snapshot;
+    this.fires = {};
   }
 
   async runNode(
@@ -180,8 +190,8 @@ export class WorkflowRunner {
     const outputs = await this.runNode(node, inputs);
     const children = this.snapshot.nodeToChildren[node];
 
-    const childrenJobs = children.map((childId) =>
-      this.runWithChildren(childId, outputs ?? {}),
+    const childrenJobs = children.map((child) =>
+      this.runWithChildren(child.childId, outputs ?? {}),
     );
 
     if (childrenJobs.length > 0) {

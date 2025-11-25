@@ -23,10 +23,15 @@ export namespace Connector {
   ) => {
     const outputConnection = getOutputConnections(editor, sourceId);
 
-    return (
+    console.log({ outputConnection });
+
+    const one =
       outputConnection.find((con) => con.meta.targetId === targetId)?.props
-        .inputPropertyName ?? null
-    );
+        .inputPropertyName ?? null;
+
+    console.log({ one });
+
+    return one;
   };
 
   export const getPossibleInputSpots = (

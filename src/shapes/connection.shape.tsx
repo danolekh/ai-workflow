@@ -207,6 +207,9 @@ export class ConnectionShapeUtil extends ShapeUtil<ConnectionShape> {
           },
           inputPropertyName: inputSpots[0],
         },
+        meta: {
+          targetId: potentialTarget.id,
+        },
       });
     }
   }
