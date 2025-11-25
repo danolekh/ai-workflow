@@ -7,16 +7,15 @@ import {
   Editor,
   useValue,
 } from "tldraw";
-import { FileInputIcon, Loader2Icon, PlayIcon } from "lucide-react";
+import {
+  FileInputIcon,
+  Loader2Icon,
+  PlayIcon,
+  WorkflowIcon,
+} from "lucide-react";
 import { ConnectionPool, ConnectionTargetIndicator } from "./connection.shape";
 import { Button } from "@/components/ui/button";
-import {
-  executeWorkflow,
-  getWorkflowShapshot,
-  runningNodes,
-  useIsRunning,
-} from "@/workflow";
-import { sleep } from "@/lib/utils";
+import { WorkflowRunner, getWorkflowShapshot, useIsRunning } from "@/workflow";
 
 export type PromptShape = TLBaseShape<
   "prompt",
@@ -29,14 +28,6 @@ export type PromptShape = TLBaseShape<
 
 export class PromptShapeUtil extends BaseBoxShapeUtil<PromptShape> {
   static override type = "prompt" as const;
-
-  static async execute(editor: Editor, shape: PromptShape, inputs: any) {
-    await sleep(400);
-
-    return {
-      text: `Hello from ${shape.id}`,
-    };
-  }
 
   canEdit(_shape: PromptShape): boolean {
     return false;
@@ -71,14 +62,10 @@ export class PromptShapeUtil extends BaseBoxShapeUtil<PromptShape> {
               className="pointer-events-auto"
               disabled={isRunning}
               onPointerDown={() => {
-                console.log("here");
                 const snapshot = getWorkflowShapshot(this.editor, shape.id);
+                const runner = new WorkflowRunner(this.editor, snapshot);
 
-                executeWorkflow(this.editor, snapshot);
-
-                console.log({
-                  snapshot,
-                });
+                runner.run();
               }}
             >
               {isRunning ? (

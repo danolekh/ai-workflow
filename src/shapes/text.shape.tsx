@@ -2,8 +2,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { HTMLContainer, TLBaseShape, BaseBoxShapeUtil, Editor } from "tldraw";
 import { Loader2Icon, PlayIcon, TextIcon } from "lucide-react";
 import { ConnectionPool, ConnectionTargetIndicator } from "./connection.shape";
-import { sleep } from "@/lib/utils";
-import { executeWorkflow, getWorkflowShapshot, useIsRunning } from "@/workflow";
+import { WorkflowRunner, getWorkflowShapshot, useIsRunning } from "@/workflow";
 import { Button } from "@/components/ui/button";
 
 export type TextShape = TLBaseShape<
@@ -19,14 +18,6 @@ export class TextShapeUtil extends BaseBoxShapeUtil<TextShape> {
   static override type = "text" as const;
 
   static icon = (<TextIcon strokeWidth={1.8} className="size-5" />);
-
-  static async execute(editor: Editor, shape: TextShape, inputs: any) {
-    await sleep(400);
-
-    return {
-      text: shape.props.text,
-    };
-  }
 
   getDefaultProps() {
     return {
@@ -52,12 +43,9 @@ export class TextShapeUtil extends BaseBoxShapeUtil<TextShape> {
               disabled={isRunning}
               onPointerDown={() => {
                 const snapshot = getWorkflowShapshot(this.editor, shape.id);
+                const runner = new WorkflowRunner(this.editor, snapshot);
 
-                executeWorkflow(this.editor, snapshot);
-
-                console.log({
-                  snapshot,
-                });
+                runner.run();
               }}
             >
               {isRunning ? (

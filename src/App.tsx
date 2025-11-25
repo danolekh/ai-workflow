@@ -11,7 +11,12 @@ import {
   useQuickReactor,
   useEditor,
 } from "tldraw";
-import { AIWorkflowNodes, AIWorkflowShapes } from "./shapes";
+import {
+  AIWorkflowNodes,
+  AIWorkflowShapes,
+  HelperNodes,
+  ToolbarMenuNodes,
+} from "./shapes";
 import { AIWorkflowBindings } from "./bindings";
 import { BaseConnectionTool } from "./tools/connection.tool";
 import { Toaster } from "sonner";
@@ -26,7 +31,7 @@ function App() {
         persistenceKey="main"
         overrides={{
           tools: (editor, tools) => {
-            for (const shape of AIWorkflowNodes) {
+            for (const shape of ToolbarMenuNodes) {
               tools[`node-${shape.type}`] = {
                 icon: shape.icon,
                 id: shape.type,
@@ -67,7 +72,12 @@ function App() {
                 <NoteToolbarItem />
               </TldrawUiMenuGroup>
               <TldrawUiMenuGroup id="ai-nodes">
-                {AIWorkflowShapes.map((shape) => (
+                {AIWorkflowNodes.map((shape) => (
+                  <ToolbarItem tool={`node-${shape.type}`} key={shape.type} />
+                ))}
+              </TldrawUiMenuGroup>
+              <TldrawUiMenuGroup id="helpers">
+                {HelperNodes.map((shape) => (
                   <ToolbarItem tool={`node-${shape.type}`} key={shape.type} />
                 ))}
               </TldrawUiMenuGroup>

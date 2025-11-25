@@ -1,4 +1,5 @@
 import { ConnectionBinding } from "@/bindings/connection.binding";
+import { Connector } from "@/connector";
 import { cn } from "@/lib/utils";
 import {
   connectionState,
@@ -8,6 +9,7 @@ import {
   Edge2d,
   Editor,
   Geometry2d,
+  HTMLContainer,
   IndexKey,
   JsonObject,
   ShapeUtil,
@@ -28,8 +30,14 @@ export type ConnectionShape = TLBaseShape<
   {
     start: VecModel;
     end: VecModel;
+    inputPropertyName: string | null;
   }
->;
+> & {
+  meta: {
+    sourceId: TLShapeId;
+    targetId: TLShapeId | null;
+  };
+};
 
 export class ConnectionShapeUtil extends ShapeUtil<ConnectionShape> {
   static override type = "connection";
@@ -44,6 +52,7 @@ export class ConnectionShapeUtil extends ShapeUtil<ConnectionShape> {
         x: 0,
         y: 0,
       },
+      inputPropertyName: null,
     };
   }
 
@@ -79,19 +88,12 @@ export class ConnectionShapeUtil extends ShapeUtil<ConnectionShape> {
     shape: ConnectionShape,
     info: TLHandleDragInfo<ConnectionShape>,
   ) {
-    console.log("onhandleDrag");
-
     // Find the new position of the handle in page space
     const shapeTransform = this.editor.getShapePageTransform(shape);
     const handlePagePosition = shapeTransform.applyToPoint(info.handle);
 
     const potentialTarget = this.editor.getShapeAtPoint(handlePagePosition);
-
-    const hasTarget = potentialTarget && potentialTarget.type !== "connection";
-
-    connectionState.update(this.editor, () => ({
-      potentialTargetId: hasTarget ? potentialTarget.id : null,
-    }));
+    const source = this.editor.getShape(shape.meta.sourceId);
 
     this.editor.updateShape<ConnectionShape>({
       id: shape.id,
@@ -103,6 +105,16 @@ export class ConnectionShapeUtil extends ShapeUtil<ConnectionShape> {
         },
       },
     });
+
+    const canConnect =
+      potentialTarget &&
+      source &&
+      Connector.canConnect(this.editor, source, potentialTarget);
+
+    connectionState.update(this.editor, () => ({
+      potentialTargetId: canConnect ? potentialTarget.id : null,
+      sourceId: source ? source.id : null,
+    }));
   }
 
   onHandleDragEnd(
@@ -113,10 +125,17 @@ export class ConnectionShapeUtil extends ShapeUtil<ConnectionShape> {
       .getBindingsFromShape<ConnectionBinding>(current.id, "connection")
       .find((binding) => binding.meta.type === "end");
 
-    const cleanupPreviousBinding = () =>
-      previousBinding
-        ? this.editor.deleteBinding(previousBinding.id)
-        : void null;
+    const cleanup = () => {
+      if (previousBinding) this.editor.deleteBinding(previousBinding.id);
+
+      this.editor.updateShape<ConnectionShape>({
+        id: current.id,
+        type: "connection",
+        props: {
+          inputPropertyName: null,
+        },
+      });
+    };
 
     const shapeTransform = this.editor.getShapePageTransform(current);
     const handlePagePosition = shapeTransform.applyToPoint({
@@ -129,14 +148,15 @@ export class ConnectionShapeUtil extends ShapeUtil<ConnectionShape> {
     const hasTarget = potentialTarget && potentialTarget.type !== "connection";
 
     if (!hasTarget) {
-      cleanupPreviousBinding();
+      cleanup();
       return;
     }
 
     const targetShape = this.editor.getShape(potentialTarget.id);
+    const sourceShape = this.editor.getShape(current.meta.sourceId);
 
-    if (!targetShape) {
-      cleanupPreviousBinding();
+    if (!targetShape || !sourceShape) {
+      cleanup();
       return;
     }
 
@@ -144,26 +164,29 @@ export class ConnectionShapeUtil extends ShapeUtil<ConnectionShape> {
       potentialTarget.id,
     );
 
-    this.editor.updateShape<ConnectionShape>({
-      id: current.id,
-      type: "connection",
-      props: {
-        ["end"]: {
-          x: targetShape.x + targetShapeGeometry.center.x,
-          y: targetShape.y + targetShapeGeometry.center.y,
-        },
-      },
-    });
+    const inputSpots = Connector.getPossibleInputSpots(
+      this.editor,
+      sourceShape,
+      targetShape,
+    );
+
+    if (inputSpots.length === 0) {
+      cleanup();
+      return;
+    }
+
+    console.log({ inputSpots });
 
     connectionState.update(this.editor, () => ({
       potentialTargetId: null,
+      sourceId: null,
     }));
 
     if (
       previousBinding?.fromId !== current.id ||
       previousBinding?.toId !== potentialTarget.id
     ) {
-      cleanupPreviousBinding();
+      cleanup();
 
       this.editor.createBinding<ConnectionBinding>({
         type: "connection",
@@ -171,6 +194,18 @@ export class ConnectionShapeUtil extends ShapeUtil<ConnectionShape> {
         toId: potentialTarget.id,
         meta: {
           type: "end",
+        },
+      });
+
+      this.editor.updateShape<ConnectionShape>({
+        id: current.id,
+        type: "connection",
+        props: {
+          ["end"]: {
+            x: targetShape.x + targetShapeGeometry.center.x,
+            y: targetShape.y + targetShapeGeometry.center.y,
+          },
+          inputPropertyName: inputSpots[0],
         },
       });
     }
@@ -200,8 +235,11 @@ export class ConnectionShapeUtil extends ShapeUtil<ConnectionShape> {
   }
 
   component(shape: ConnectionShape) {
-    const editor = useEditor();
     const { start, end } = getHandlePositions(this.editor, shape);
+    const inputPropertyName = shape.props.inputPropertyName;
+
+    const midX = (start.x + end.x) / 2;
+    const midY = (start.y + end.y) / 2;
 
     return (
       <SVGContainer>
@@ -214,6 +252,19 @@ export class ConnectionShapeUtil extends ShapeUtil<ConnectionShape> {
           strokeWidth={2}
           strokeLinecap="round"
         />
+        {inputPropertyName && (
+          <text
+            x={midX}
+            y={midY}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="currentColor"
+            fontSize={12}
+            style={{ pointerEvents: "none" }}
+          >
+            {inputPropertyName}
+          </text>
+        )}
       </SVGContainer>
     );
   }
@@ -328,6 +379,8 @@ export function ConnectionTargetIndicator({
           y={0}
           width={shapeBounds.width}
           height={shapeBounds.height}
+          rx={8}
+          ry={8}
           fill="none"
           stroke="#3b82f6"
           strokeWidth={2}
@@ -337,6 +390,7 @@ export function ConnectionTargetIndicator({
           }}
         />
       </SVGContainer>
+
       {children}
     </>
   );

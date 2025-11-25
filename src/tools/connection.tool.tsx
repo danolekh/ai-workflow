@@ -53,6 +53,10 @@ export class BaseConnectionTool extends StateNode {
           y: this.editor.inputs.currentPagePoint.y,
         },
       },
+      meta: {
+        inputPropertyName: null,
+        sourceId: sourceShape.id,
+      },
     });
 
     this.editor.sendToBack([connectionShapeId]);
