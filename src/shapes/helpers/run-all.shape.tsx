@@ -2,7 +2,8 @@ import { Button } from "@/components/ui/button";
 import { getWorkflowShapshot, useIsRunning, WorkflowRunner } from "@/workflow";
 import { PlayIcon } from "lucide-react";
 import { BaseBoxShapeUtil, HTMLContainer, TLBaseShape } from "tldraw";
-import { ConnectionPool } from "./connection.shape";
+import { ConnectionPool, ConnectionTargetIndicator } from "../connection.shape";
+import { RunWorkflowButton } from "@/components/run-workflow-button";
 
 export type RunAllShape = TLBaseShape<
   "run-all",
@@ -24,29 +25,18 @@ export class RunAllShapeUtil extends BaseBoxShapeUtil<RunAllShape> {
   }
 
   component(shape: RunAllShape) {
-    const isRunning = useIsRunning(shape.id);
-
     return (
       <HTMLContainer className="flex items-center justify-center border rounded-md bg-card">
-        <Button
-          type="button"
-          className="pointer-events-auto size-[50%]"
-          variant={"outline"}
-          size="icon"
-          disabled={isRunning}
-          onPointerDown={() => {
-            const snapshot = getWorkflowShapshot(this.editor, shape.id);
-            const runner = new WorkflowRunner(this.editor, snapshot);
-
-            runner.run();
-          }}
-        >
-          <PlayIcon />
-        </Button>
-        <ConnectionPool
-          className="absolute right-0 translate-x-[50%] top-[50%] -translate-y-[50%] z-[-1]"
-          sourceShapeId={shape.id}
-        />
+        <ConnectionTargetIndicator shape={shape}>
+          <RunWorkflowButton
+            className="pointer-events-auto size-[50%]"
+            shapeId={shape.id}
+          />
+          <ConnectionPool
+            className="absolute right-0 translate-x-[50%] top-[50%] -translate-y-[50%] z-[-1]"
+            sourceShapeId={shape.id}
+          />
+        </ConnectionTargetIndicator>
       </HTMLContainer>
     );
   }

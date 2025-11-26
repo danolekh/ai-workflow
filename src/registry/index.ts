@@ -1,10 +1,11 @@
 import { Editor, TLBaseShape, T } from "tldraw";
-import type { PromptShape } from "../shapes/prompt.shape";
-import type { TextShape } from "../shapes/text.shape";
-import type { RunAllShape } from "../shapes/run-all.shape";
+import type { PromptShape } from "@/shapes/prompt.shape";
+import type { TextShape } from "@/shapes/text.shape";
+import type { RunAllShape } from "@/shapes/helpers/run-all.shape";
 import { sleep } from "@/lib/utils";
-import type { ZodObject, ZodTypeAny, ZodOptional } from "zod/v4";
+import type { ZodObject, ZodTypeAny, ZodOptional, ZodRecord } from "zod/v4";
 import z from "zod/v4";
+import type { AggregatorShape } from "@/shapes/helpers/aggregator.shape";
 
 const schema = z.object({
   text: z.string(),
@@ -12,12 +13,12 @@ const schema = z.object({
 
 type A = z.infer<typeof schema>;
 
-export type Node = PromptShape | TextShape | RunAllShape;
+export type Node = PromptShape | TextShape | RunAllShape | AggregatorShape;
 
 export type NodeRegistration<
   Shape extends TLBaseShape<any, any>,
-  InputsSchema extends ZodObject,
-  OutputSchema extends ZodTypeAny,
+  InputsSchema extends ZodObject | ZodRecord,
+  OutputSchema extends ZodTypeAny | null,
   Output = z.infer<OutputSchema>,
   Inputs = z.infer<InputsSchema>,
 > = {
@@ -30,8 +31,16 @@ export type NodeRegistration<
   ) => Promise<Output> | Output;
 };
 
+const a = z.object({
+  test: z.string(),
+});
+a.shape.test;
+
 export const register = <Shape extends TLBaseShape<any, any>>() => {
-  return <InputsSchema extends ZodObject, OutputSchema extends ZodTypeAny>(
+  return <
+    InputsSchema extends ZodObject | ZodRecord,
+    OutputSchema extends ZodTypeAny | null,
+  >(
     data: NodeRegistration<Shape, InputsSchema, OutputSchema>,
   ) => data;
 };
@@ -71,9 +80,22 @@ export const registry = {
   }),
   "run-all": register<RunAllShape>()({
     inputsValidator: z.object(),
-    outputValidator: z.undefined(),
+    outputValidator: null,
     execute: async (editor, shape, inputs) => {
       return undefined;
+    },
+  }),
+  aggregator: register<AggregatorShape>()({
+    inputsValidator: z.record(z.string(), z.string()),
+    outputValidator: z.string(),
+    execute: async (editor, shape, inputs) => {
+      let output = shape.props.template;
+
+      for (const [key, value] of Object.entries(inputs)) {
+        output = output.replace(`{{${key}}}`, value);
+      }
+
+      return output;
     },
   }),
 } as const satisfies Record<

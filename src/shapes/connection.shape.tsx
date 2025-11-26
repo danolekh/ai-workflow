@@ -144,18 +144,21 @@ export class ConnectionShapeUtil extends ShapeUtil<ConnectionShape> {
     });
 
     const potentialTarget = this.editor.getShapeAtPoint(handlePagePosition);
+    const source = this.editor.getShape(current.meta.sourceId);
 
-    const hasTarget = potentialTarget && potentialTarget.type !== "connection";
+    const canConnect =
+      potentialTarget &&
+      source &&
+      Connector.canConnect(this.editor, source, potentialTarget);
 
-    if (!hasTarget) {
+    if (!canConnect) {
       cleanup();
       return;
     }
 
     const targetShape = this.editor.getShape(potentialTarget.id);
-    const sourceShape = this.editor.getShape(current.meta.sourceId);
 
-    if (!targetShape || !sourceShape) {
+    if (!targetShape) {
       cleanup();
       return;
     }
@@ -163,19 +166,6 @@ export class ConnectionShapeUtil extends ShapeUtil<ConnectionShape> {
     const targetShapeGeometry = this.editor.getShapeGeometry(
       potentialTarget.id,
     );
-
-    const inputSpots = Connector.getPossibleInputSpots(
-      this.editor,
-      sourceShape,
-      targetShape,
-    );
-
-    if (inputSpots.length === 0) {
-      cleanup();
-      return;
-    }
-
-    console.log({ inputSpots });
 
     connectionState.update(this.editor, () => ({
       potentialTargetId: null,
@@ -197,6 +187,12 @@ export class ConnectionShapeUtil extends ShapeUtil<ConnectionShape> {
         },
       });
 
+      const inputPropertyName = Connector.getPropertyNameForNewConnection(
+        this.editor,
+        source,
+        potentialTarget,
+      );
+
       this.editor.updateShape<ConnectionShape>({
         id: current.id,
         type: "connection",
@@ -205,7 +201,7 @@ export class ConnectionShapeUtil extends ShapeUtil<ConnectionShape> {
             x: targetShape.x + targetShapeGeometry.center.x,
             y: targetShape.y + targetShapeGeometry.center.y,
           },
-          inputPropertyName: inputSpots[0],
+          inputPropertyName: inputPropertyName,
         },
         meta: {
           targetId: potentialTarget.id,

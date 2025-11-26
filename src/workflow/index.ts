@@ -10,44 +10,33 @@ import { localStorageAtom } from "@tldraw/state";
 import { toast } from "sonner";
 import { Connector } from "@/connector";
 
+type NodeToChildrenMeta = Record<
+  TLShapeId,
+  {
+    bindingPropertyName: string | null;
+    childId: TLShapeId;
+  }[]
+>;
+
 type WorkflowSnapshot = {
   startingNode: TLShapeId;
-  nodeToChildren: Record<
-    TLShapeId,
-    {
-      inputPropertyName: string;
-      childId: TLShapeId;
-    }[]
-  >;
+  nodeInputConnections: Record<TLShapeId, number>;
+  nodeToChildren: NodeToChildrenMeta;
 };
 
 export const getWorkflowShapshot = (
   editor: Editor,
   startingNode: TLShapeId,
 ): WorkflowSnapshot => {
-  const getNodeChildren = (
-    nodeId: TLShapeId,
-  ): Record<
-    TLShapeId,
-    {
-      childId: TLShapeId;
-      inputPropertyName: string;
-    }[]
-  > => {
+  const getNodeChildren = (nodeId: TLShapeId): NodeToChildrenMeta => {
     const visited = new Set<TLShapeId>();
-    const result: Record<
-      TLShapeId,
-      {
-        childId: TLShapeId;
-        inputPropertyName: string;
-      }[]
-    > = {};
+    const result: NodeToChildrenMeta = {};
 
     const getChildren = (
       nodeId: TLShapeId,
     ): {
       childId: TLShapeId;
-      inputPropertyName: string;
+      bindingPropertyName: string | null;
     }[] => {
       const startBindings = editor
         .getBindingsToShape<ConnectionBinding>(nodeId, "connection")
@@ -66,16 +55,12 @@ export const getWorkflowShapshot = (
         )
         .map((childId) => ({
           childId,
-          inputPropertyName: Connector.getConnectionPropertyName(
+          bindingPropertyName: Connector.getConnectionPropertyName(
             editor,
             nodeId,
             childId,
           ),
-        }))
-        .filter(
-          (c): c is { childId: TLShapeId; inputPropertyName: string } =>
-            c.inputPropertyName !== null,
-        );
+        }));
 
       return children;
     };
@@ -97,9 +82,23 @@ export const getWorkflowShapshot = (
     return result;
   };
 
+  const nodeToChildren = getNodeChildren(startingNode);
+
   return {
     startingNode,
-    nodeToChildren: getNodeChildren(startingNode),
+    nodeToChildren,
+    nodeInputConnections: Object.keys(nodeToChildren).reduce(
+      (acc, nodeId) => ({
+        ...acc,
+        [nodeId]: editor
+          .getBindingsToShape<ConnectionBinding>(
+            nodeId as TLShapeId,
+            "connection",
+          )
+          .filter((binding) => binding.meta.type === "end").length,
+      }),
+      {},
+    ),
   };
 };
 
@@ -132,18 +131,18 @@ export class WorkflowRunner {
   snapshot: WorkflowSnapshot;
 
   // when connection fires a target, it's written here
-  fires: Record<
+  connectionTriggers: Record<
     TLShapeId,
-    {
-      inputPropertyName: string;
+    Array<{
+      bindingPropertyName: string | null;
       value: RegistryOutputsVariations;
-    }
+    }>
   >;
 
   constructor(editor: Editor, snapshot: WorkflowSnapshot) {
     this.editor = editor;
     this.snapshot = snapshot;
-    this.fires = {};
+    this.connectionTriggers = {};
   }
 
   async runNode(
@@ -181,21 +180,66 @@ export class WorkflowRunner {
       runningNodes: [...prev.runningNodes].filter((id) => id !== shapeId),
     }));
 
-    const validatedOutput = registration.outputValidator.decode(output);
+    const validatedOutput = registration.outputValidator
+      ? registration.outputValidator.decode(output)
+      : output;
 
     return validatedOutput;
+  }
+
+  triggerNodeConnection(
+    childId: TLShapeId,
+    bindingPropertyName: string | null,
+    value: RegistryOutputsVariations,
+  ) {
+    this.connectionTriggers[childId] = this.connectionTriggers[childId] || [];
+    this.connectionTriggers[childId].push({ bindingPropertyName, value });
+  }
+
+  constructInput(targetId: TLShapeId) {
+    const input = this.connectionTriggers[targetId].reduce(
+      (acc, { bindingPropertyName, value }) => {
+        if (bindingPropertyName)
+          acc[bindingPropertyName as keyof RegistryInputsVariations] = value;
+
+        return acc;
+      },
+      {} as RegistryInputsVariations,
+    );
+
+    return input;
+  }
+
+  async runNodesThatAreReady() {
+    const jobs = [];
+    for (const [targetId, inputs] of Object.entries(this.connectionTriggers)) {
+      if (
+        inputs.length ===
+        this.snapshot.nodeInputConnections[targetId as TLShapeId]
+      ) {
+        const input = this.constructInput(targetId as TLShapeId);
+        jobs.push(this.runWithChildren(targetId as TLShapeId, input));
+        this.connectionTriggers[targetId as TLShapeId] = [];
+      }
+    }
+
+    return await Promise.all(jobs);
   }
 
   async runWithChildren(node: TLShapeId, inputs: RegistryInputsVariations) {
     const outputs = await this.runNode(node, inputs);
     const children = this.snapshot.nodeToChildren[node];
 
-    const childrenJobs = children.map((child) =>
-      this.runWithChildren(child.childId, outputs ?? {}),
-    );
+    if (children.length > 0) {
+      children.forEach((child) =>
+        this.triggerNodeConnection(
+          child.childId,
+          child.bindingPropertyName,
+          outputs,
+        ),
+      );
 
-    if (childrenJobs.length > 0) {
-      await Promise.all(childrenJobs);
+      await this.runNodesThatAreReady();
     }
 
     return outputs;
@@ -219,7 +263,11 @@ export class WorkflowRunner {
       return;
     }
 
-    await this.runWithChildren(this.snapshot.startingNode, {});
+    toast.promise(this.runWithChildren(this.snapshot.startingNode, {}), {
+      loading: "Running workflow...",
+      success: "Workflow completed",
+      error: "Workflow failed",
+    });
   }
 }
 

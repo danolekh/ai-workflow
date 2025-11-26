@@ -98,7 +98,6 @@ function App() {
       >
         <Watcher />
       </Tldraw>
-      <Toaster />
     </div>
   );
 }
